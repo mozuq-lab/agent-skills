@@ -1,0 +1,5 @@
+interface:
+  display_name: "思考を広げる"
+  short_description: "明示的に呼び出した回答で、視点・具体例・関連する発想を豊かに展開する"
+policy:
+  allow_implicit_invocation: false
