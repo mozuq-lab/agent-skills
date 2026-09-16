@@ -1,0 +1,5 @@
+interface:
+  display_name: "実行とレビュー"
+  short_description: "依頼を独立した実行担当とレビュー担当のサブエージェントで処理し、修正を経て報告する"
+policy:
+  allow_implicit_invocation: false
