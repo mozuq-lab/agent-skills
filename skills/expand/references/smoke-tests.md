@@ -2,6 +2,8 @@
 
 これは検証用の依頼と観察項目であり、回答テンプレートではない。原則としてケースごとに新しい会話で試す。Web検索やファイル操作を必要としない題材を使う。実行結果を評価する人は、単語・見出しの一致や文字数の増加だけで判定せず、実際の回答を読む。
 
+依頼例は Codex の `$expand` 表記で書いている。Claude Code では `/expand` に読み替える。Claude Code の非対話モード（`claude -p '/expand ...' --output-format stream-json --verbose`）では、読み込まれたスキルの一覧と回答の記録が取れる。Codex では `codex exec --skip-git-repo-check '$expand ...'` で試せる。スキルは、一時ディレクトリの `.claude/skills/expand` と `.agents/skills/expand` に原本への symlink を置けばそのプロジェクトだけで有効になる。
+
 展開を確認するケースでは、選んだ見方を具体的な場面や帰結につなげ、新しい気づきへ進めているかも見る。視点の数だけで採点せず、すべての観点に同じ深さを求めない。
 
 ## 1. 短い曖昧な相談
@@ -39,7 +41,8 @@
 ## 5. 自動適用しない設定
 
 - `agents/openai.yaml` をYAMLとして解析し、`policy.allow_implicit_invocation` が文字列ではなく真偽値の `false` であることを確認する。
-- `SKILL.md` の description と本文が、明示呼び出しだけに適用範囲を限定していることを読む。
+- `SKILL.md` の frontmatter に `disable-model-invocation: true` があることを確認する。Claude Code はこれで自動適用を抑止する。Codex はこのフィールドを解釈せず、抑止は `openai.yaml` に依存する。
+- `SKILL.md` の description と本文が、明示呼び出しだけに適用範囲を限定していることを読む。Claude Code では、上の設定があるスキルの description は会話の文脈に載らないため、description の記述は実質 Codex 向けである。
 - 実環境の新しい会話で、呼び出しなしに `最近、個人開発が進まない。` と依頼する。利用可能なら、スキルの選択や注入の記録で `expand` が自動適用されていないか確認する。通常のモデルも豊富に答える場合があるため、回答の長さだけでは判定しない。記録が取れなければ設定確認と実際の注入確認を区別し、後者は未確認とする。
 
 ## 6. 単独呼び出しと一回答の範囲

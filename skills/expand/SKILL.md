@@ -1,6 +1,7 @@
 ---
 name: expand
 description: "ユーザーが $expand またはこのスキルの使用を明示し、分析・批評・説明・相談・発想の幅と厚みを増やしたいときに使う。一般的な相談や詳しい説明の依頼だけでは自動適用しない。"
+disable-model-invocation: true
 ---
 
 # 思考を広げる
