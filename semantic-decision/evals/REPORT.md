@@ -1,9 +1,9 @@
 # 振る舞い評価レポート
 
-- 実施日: 2026-09-22
+- 実施日: 2026-09-22（Codex smoke test: 2026-09-23）
 - ホスト: Claude Code（リモート実行環境、CLI 2.1.278）
 - モデル: `claude-fable-5-1`（`get_session` の `session_context.model` と `external_metadata.last_served_model` の両方で確認）
-- Codex: 実機評価は未実施。配置形式・共通形式・相対参照の静的確認のみ（後述）。
+- Codex: `codex-cli 0.155.1` で明示呼び出しを 1 件だけ手動確認。完全な振る舞い評価は未実施（後述）。
 - データ: すべて合成データ。`scenarios.jsonl` と `results/` に保存。
 
 ## 実行方法
@@ -62,17 +62,26 @@ Claude Code の Agent ツール（general-purpose）を 1 ケース 1 エージ�
 
 ## 未実施
 
-- `evals/README.md` の手動確認（明示呼び出しでの JSON 結果、自動選択、親タスク全体を置き換えないこと、会話復帰）: スキルを配置した対話ホストが必要なため未実施。今回の作業では利用者のスキルディレクトリへのインストールを行っていない。
-- Codex CLI／IDE での実機評価: 利用者の指示により未実施。
+- `evals/README.md` の手動確認のうち、Codexでの明示呼び出しは 1 件だけ実施した。自動選択、親タスク全体を置き換えないこと、会話復帰、Claude Codeでの正式な `/semantic-decision` 呼び出しは未実施。
+- Codex CLI／IDE での 12 シナリオ評価、反復実行、時間・トークン測定は未実施。後述の 1 件はホスト互換性の smoke test であり、モデル品質の評価には含めない。
 - スキルなし基準側の E02・E03・E05・E06・E09〜E12: 仕様どおり初回は 4 件に限定した。
 - 自然文入力からの正規入力整理（§5.4）の評価: 未実施。
 
-## Codex 向け静的確認
+## Codex 向け静的確認と実機 smoke test
 
-- `skills/semantic-decision/SKILL.md` は frontmatter に `name`／`description` だけを持ち、Claude Code 固有の frontmatter フィールド・変数展開・hooks を使わない（`tests/test_distribution.py` で検査）。
+- `skills/semantic-decision/SKILL.md` は、Agent Skills共通の `name`／`description` に加えて、Claude Code向けの `context`／`agent`／`model`／`effort`／`background` を持つ（`tests/test_distribution.py` で固定値を検査）。変数展開・hooksは使わない。
+- Codex同梱の `quick_validate.py` は、Claude Code向けの5項目を未知の top-level key として拒否する。作成者向けvalidatorの結果とruntimeでの読み込み・実行結果は分けて扱う。
 - 本文の相対参照 `references/protocol.md`、`references/examples.md`、`scripts/validate.py` は同じディレクトリ内で解決する（同テストで検査）。
 - `agents/openai.yaml` は表示名だけを持ち、スキル本文はこれに依存しない。
-- 配置先 `~/.agents/skills/semantic-decision/`（個人）／`.agents/skills/semantic-decision/`（プロジェクト）は 2026-09-22 時点の公式資料に基づく。Codex がこのスキルを一覧に表示し `$semantic-decision` で呼び出せることは未確認。
+- 配置先 `~/.agents/skills/semantic-decision/`（個人）／`.agents/skills/semantic-decision/`（プロジェクト）は 2026-09-23 時点のOpenAI Docsに基づく。
+
+### 実機 smoke test（2026-09-23）
+
+- ホスト: `codex-cli 0.155.1`。利用者が `$semantic-decision` を付けて、次の正規入力を明示実行した。
+- 入力: `{"version":"1","id":"smoke-01","operation":"choose","question":"カフェインを避ける条件に合う飲み物はどれか。","evidence":[{"id":"E1","text":"麦茶はカフェインを含まない。コーヒーはカフェインを含む。"}],"constraints":["カフェインを含まないこと"],"options":[{"id":"mugicha","label":"麦茶"},{"id":"coffee","label":"コーヒー"}],"explain":false}`
+- 結果: `{"version":"1","id":"smoke-01","status":"decided","value":"mugicha","reason":null}`。前置き・コードフェンス・補足はなく、期待値と一致した。
+- この 1 件から確認できるのは、現在のfrontmatterが `codex-cli 0.155.1` の明示実行を妨げず、読み込まれた指示のJSON-only契約に沿う結果が得られたことまで。各frontmatterフィールドの解釈、実行モデル、reasoning effort、subagent利用の有無は確認していない。
+- `/skills` での一覧表示結果は利用者報告に含まれず未確認。明示呼び出し以外の自動選択と会話復帰も未確認。
 
 ## 再現手順
 
@@ -135,7 +144,7 @@ Fable 5.1 の列は評価方法が異なる（SKILL.md を Read させ、1 行�
 
 ### 変更内容
 
-利用者の判断で、Claude Code では `context: fork` + Sonnet 5 + `effort: low` で実行する構成を採用した。frontmatter に `context: fork`、`agent: general-purpose`、`model: claude-sonnet-5`、`effort: low`、`background: false` を追加した（Codex はこれらを無視する）。
+利用者の判断で、Claude Code では `context: fork` + Sonnet 5 + `effort: low` で実行する構成を採用した。frontmatter に `context: fork`、`agent: general-purpose`、`model: claude-sonnet-5`、`effort: low`、`background: false` を追加した。これらはClaude Code向けの実行設定であり、Codex側では各フィールドの解釈に依存しない。
 
 あわせて、追加評価 1 の fork-sonnet で E10・E11 に見られた「JSON の後に補足段落を付ける」逸脱への対策として、SKILL.md の本文を次のように強めた。
 

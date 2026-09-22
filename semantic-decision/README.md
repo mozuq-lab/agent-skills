@@ -100,7 +100,7 @@ python3 -m unittest discover -s semantic-decision/tests -v
 ```
 
 - `test_validate.py`: 入出力契約、厳密な JSON 解析、結果と入力の対応、CLI の終了コードとファイル非変更。
-- `test_distribution.py`: 必須ファイル、frontmatter、相対参照、SKILL.md の行数上限、標準ライブラリのみの使用。
+- `test_distribution.py`: 必須ファイル、frontmatter、相対参照、SKILL.md の行数上限、標準ライブラリのみの使用、ホスト互換性に関する文書の主張。
 - `test_scenarios.py`: `evals/scenarios.jsonl` の 12 件が契約と整合すること。
 
 ## 振る舞い評価
@@ -116,7 +116,7 @@ python3 -m unittest discover -s semantic-decision/tests -v
 - `agents/openai.yaml` はこのリポジトリの他スキルとの整合のために置いた Codex 用の表示設定で、スキル本文は依存しません。自動適用を抑止する `policy` は付けていません（仕様が限定的な自動利用を許容するため）。
 - SKILL.md の frontmatter は `name`／`description` と、Claude Code 向けの `context`／`agent`／`model`／`effort`／`background` だけです。`allowed-tools`、`disable-model-invocation`、hooks、`$ARGUMENTS` などの変数展開は使いません。
 
-## 実行モデルと effort（Claude Code）
+## 実行モデルと effort（ホスト別）
 
 SKILL.md の frontmatter には、`name`／`description` に加えて Claude Code 向けの実行設定を置いています。
 
@@ -130,7 +130,9 @@ background: false
 
 - Claude Code では、スキル本文をプロンプトとして general-purpose サブエージェントに渡し、会話履歴なしで実行します。`model` と `effort` はそのサブエージェントにだけ効き、親セッションのモデルや effort は変わりません。`background: false` により、判断結果を待ってから親の作業が続きます。
 - 組織の `availableModels` で除外されたモデルや auto モード非対応のモデルは無視され、セッションのモデルで実行されます。
-- Codex にはスキル単位でモデルや reasoning effort を指定する仕組みがなく、これらのフィールドは無視されます。Codex ではホストの設定に従ってインラインで実行されます。
+- Codex側では、このスキルの Claude Code 向け frontmatter によるモデル・reasoning effort・fork の指定に依存しません。[OpenAI Docs のスキル説明](https://learn.chatgpt.com/docs/build-skills) は `name` と `description` を必須項目として示し、[subagent の設定](https://learn.chatgpt.com/docs/agent-configuration/subagents) は明示起動、`[agents]` の既定値、custom agent file をモデル・effort の設定箇所として示しています。
+- 2026-09-23 の手動 smoke test では、`codex-cli 0.155.1` が現在の frontmatter を持つスキルを `$semantic-decision` で明示実行し、期待した JSON オブジェクトだけを返しました。これは現在の実装で追加フィールドが明示実行を妨げなかったことの確認であり、Codexが各フィールドを解釈したか、どのモデル・effort・実行経路を使ったかの確認ではありません。
+- Codex同梱の `quick_validate.py` は `context`／`agent`／`model`／`effort`／`background` を未知の top-level key として拒否します。runtime smoke test と作成者向けvalidatorは別の確認であり、この共有構成はClaude Codeの検証済み設定を保つ代わりに `quick_validate.py` の許可キーだけには収まりません。配布物の固定構成は `tests/test_distribution.py` で検査します。
 - 仕様書 §9.1 は当初これらのフィールドに依存しない方針でしたが、軽いモデルで実行したいという利用者の要望により変更しました。スキル本文自体はこれらの設定が無くても動作するよう書かれています。
 
 評価結果は [`evals/REPORT.md`](evals/REPORT.md) の追加評価 1・2 を参照してください。`context: fork` 相当の経路で、Sonnet 5 は 12 シナリオ + 追加 4 回の計 16 回すべてで JSON 1 個だけの結果を返し、判定も期待どおりでした。Haiku 4.5 は判定内容は概ね維持したものの出力契約を満たさないことが多く、採用していません。`effort: low` の影響は未検証です。
