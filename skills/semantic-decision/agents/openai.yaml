@@ -1,0 +1,3 @@
+interface:
+  display_name: "小さな判断をJSONで返す"
+  short_description: "与えられた候補・根拠から choose / boolean / classify / score の判定を1個のJSONで返す。判断不能は abstain とし、操作は実行しない"
