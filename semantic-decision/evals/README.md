@@ -7,6 +7,7 @@
 - `scenarios.jsonl`: 12 シナリオ。各行は `case_id`、`request`、`expected`（`status`／`value`／`reason` の 3 キー）、`notes`。自由文の `explanation` は採点対象にしません。
 - `results/baseline/`: スキルなしで実行した基準側の実出力（E01・E04・E07・E08）。
 - `results/with-skill/`: スキルありで実行した実出力（12 件）。
+- `results/fork-sonnet-v2/`: 出力規則を強めた `context: fork` 採用版 SKILL.md での Sonnet 5 再評価（12 件 + E10・E11 各 2 回追加）。
 - `results/fork-haiku/`、`results/fork-sonnet/`: `context: fork` 相当の経路（SKILL.md 本文 + 入力をサブエージェントへ渡す）を Haiku 4.5 / Sonnet 5 で実行した実出力。`RAW.md` に最終メッセージ全文、`E*.json` に取り出した JSON。
 - 各 `results/*/META.md`: 実施日、モデル、実行方法、ツール使用の観測。
 
@@ -73,7 +74,7 @@
 
 ### `context: fork` 相当の再現
 
-frontmatter に `context: fork` を付けた場合、ホストはスキル本文をプロンプトとして general-purpose サブエージェントに渡し、会話履歴なしで実行する。配置済みホストでは fork 設定付きの SKILL.md を `/semantic-decision` で呼び出せばよい。未配置の開発環境では、Agent ツール（`subagent_type: general-purpose`、必要なら `model` 指定）に「SKILL.md の本文全文 + 改行 + request の JSON」をそのままプロンプトとして渡し、追加の指示を付けない。最終メッセージ全体を保存し、「JSON 1 個だけか」と「取り出した JSON が契約に適合するか」を分けて記録する。
+frontmatter に `context: fork` を付けた場合、ホストはスキル本文をプロンプトとして general-purpose サブエージェントに渡し、会話履歴なしで実行する。配置済みホストでは fork 設定付きの SKILL.md を `/semantic-decision` で呼び出せばよい。未配置の開発環境では、Agent ツール（`subagent_type: general-purpose`、必要なら `model` 指定）に「SKILL.md の本文全文 + 空行 + `ARGUMENTS: ` + request の JSON」をそのままプロンプトとして渡し、追加の指示を付けない。最終メッセージ全体を保存し、「JSON 1 個だけか」と「取り出した JSON が契約に適合するか」を分けて記録する。
 
 ### 採点
 

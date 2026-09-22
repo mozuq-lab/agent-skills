@@ -114,13 +114,26 @@ python3 -m unittest discover -s semantic-decision/tests -v
 - `result` 検証で元の request が `invalid_request` かつ形式が有効な `id` を持つ場合、結果の `id` はその値と一致することを要求します。`null` は不可です。
 - 深すぎる入れ子など Python の `json` が処理できない入力は、制御された `invalid_json` として扱います。
 - `agents/openai.yaml` はこのリポジトリの他スキルとの整合のために置いた Codex 用の表示設定で、スキル本文は依存しません。自動適用を抑止する `policy` は付けていません（仕様が限定的な自動利用を許容するため）。
-- SKILL.md の frontmatter は `name`／`description` だけで、`allowed-tools`、`disable-model-invocation`、`context: fork`、hooks、変数展開は使いません。
+- SKILL.md の frontmatter は `name`／`description` と、Claude Code 向けの `context`／`agent`／`model`／`effort`／`background` だけです。`allowed-tools`、`disable-model-invocation`、hooks、`$ARGUMENTS` などの変数展開は使いません。
 
-## モデル・effort の切り替えについて
+## 実行モデルと effort（Claude Code）
 
-初版の frontmatter は `name`／`description` のみで、モデルや effort を指定していません。Claude Code では frontmatter の `model`／`effort` で切り替えができ、既定（インライン実行）ではそのターンの残り全体に効き、`context: fork` を併記するとサブエージェント側にだけ効きます。Codex にはスキル単位でモデルや reasoning effort を指定する仕組みがなく、これらのフィールドは無視されます。
+SKILL.md の frontmatter には、`name`／`description` に加えて Claude Code 向けの実行設定を置いています。
 
-`context: fork` 相当の経路で Haiku 4.5 と Sonnet 5 を試した結果は [`evals/REPORT.md`](evals/REPORT.md) の追加評価に記録しています。12 件の範囲では、Sonnet 5 は判定をすべて期待どおりに返し（2 件で JSON の後に補足段落あり）、Haiku 4.5 は判定内容は概ね維持したものの出力契約（JSON 1 個だけ、`explanation` の条件）を満たさないことが多くありました。`effort: low` の影響は未検証です。切り替えを採用する場合は、対象モデルで再評価したうえで frontmatter を変更してください。
+```yaml
+context: fork
+agent: general-purpose
+model: claude-sonnet-5
+effort: low
+background: false
+```
+
+- Claude Code では、スキル本文をプロンプトとして general-purpose サブエージェントに渡し、会話履歴なしで実行します。`model` と `effort` はそのサブエージェントにだけ効き、親セッションのモデルや effort は変わりません。`background: false` により、判断結果を待ってから親の作業が続きます。
+- 組織の `availableModels` で除外されたモデルや auto モード非対応のモデルは無視され、セッションのモデルで実行されます。
+- Codex にはスキル単位でモデルや reasoning effort を指定する仕組みがなく、これらのフィールドは無視されます。Codex ではホストの設定に従ってインラインで実行されます。
+- 仕様書 §9.1 は当初これらのフィールドに依存しない方針でしたが、軽いモデルで実行したいという利用者の要望により変更しました。スキル本文自体はこれらの設定が無くても動作するよう書かれています。
+
+評価結果は [`evals/REPORT.md`](evals/REPORT.md) の追加評価 1・2 を参照してください。`context: fork` 相当の経路で、Sonnet 5 は 12 シナリオ + 追加 4 回の計 16 回すべてで JSON 1 個だけの結果を返し、判定も期待どおりでした。Haiku 4.5 は判定内容は概ね維持したものの出力契約を満たさないことが多く、採用していません。`effort: low` の影響は未検証です。
 
 ## 限界
 

@@ -85,7 +85,7 @@ CLIの確認画面で対象を確かめて削除します。編集用の原本�
 
 `expand` は呼び出された一回答に適用し、明示された個数・長さ・形式を優先します。相談への呼び出しをコード変更や外部への書き込みの許可とは扱いません。
 
-`semantic-decision` は、候補・根拠・判断基準が揃った小さな判断に使い、結果を JSON 1 個で返します。判断できなければ `abstain` で保留し、結果に基づく操作や承認は行いません。他の2つと異なり、親タスク中の局所的な判断で自動的に選択されることを許容しているため、`disable-model-invocation` と `allow_implicit_invocation: false` は付けていません。詳細は [semantic-decision/README.md](semantic-decision/README.md) を参照してください。
+`semantic-decision` は、候補・根拠・判断基準が揃った小さな判断に使い、結果を JSON 1 個で返します。判断できなければ `abstain` で保留し、結果に基づく操作や承認は行いません。他の2つと異なり、親タスク中の局所的な判断で自動的に選択されることを許容しているため、`disable-model-invocation` と `allow_implicit_invocation: false` は付けていません。 Claude Code では frontmatter の `context: fork`・`model: claude-sonnet-5`・`effort: low` により、会話履歴を持たないサブエージェントで軽いモデルとして実行されます。Codex はこれらのフィールドを無視し、ホストの設定でインライン実行します。詳細は [semantic-decision/README.md](semantic-decision/README.md) を参照してください。
 
 `execute-review` は、呼び出されたエージェントを進行役にして、実行担当とレビュー担当を会話履歴を継承しないサブエージェントとして起動します。Claude Code では Agent ツール、Codex ではサブエージェント機能（`spawn_agent`）を使うため、Codex側は `features.multi_agent` が有効である必要があります。実行許可は元の依頼と環境に従い、依頼にない push・公開・送信は行いません。
 

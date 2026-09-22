@@ -9,6 +9,17 @@ import unittest
 from _helpers import EVALS_DIR, PROJECT_DIR, REPO_ROOT, SKILL_DIR
 
 SKILL_MD = SKILL_DIR / "SKILL.md"
+# name / description は Agent Skills 共通。残りは Claude Code だけが解釈する実行設定で、
+# Codex は無視する。値を変えるときは README と評価レポートも更新する。
+EXPECTED_FRONTMATTER = {
+    "name": "semantic-decision",
+    "description": None,
+    "context": "fork",
+    "agent": "general-purpose",
+    "model": "claude-sonnet-5",
+    "effort": "low",
+    "background": "false",
+}
 STDLIB = set(sys.stdlib_module_names)
 
 
@@ -45,10 +56,12 @@ class RequiredFiles(unittest.TestCase):
 
 
 class SkillFrontmatter(unittest.TestCase):
-    def test_name_and_description_only(self):
+    def test_frontmatter_fields(self):
         fields, _ = parse_frontmatter(read(SKILL_MD))
-        self.assertEqual(sorted(fields), ["description", "name"])
-        self.assertEqual(fields["name"], "semantic-decision")
+        self.assertEqual(sorted(fields), sorted(EXPECTED_FRONTMATTER))
+        for key, value in EXPECTED_FRONTMATTER.items():
+            if value is not None:
+                self.assertEqual(fields[key], value, key)
         self.assertGreater(len(fields["description"]), 40)
         self.assertIn("Not for", fields["description"])
 
@@ -62,10 +75,10 @@ class SkillFrontmatter(unittest.TestCase):
                        "Japanese", "references/protocol.md", "references/examples.md"):
             self.assertIn(needle, body, needle)
 
-    def test_no_host_specific_frontmatter_or_variables(self):
+    def test_no_permission_fields_hooks_or_variable_expansion(self):
         text = read(SKILL_MD)
-        for forbidden in ("allowed-tools:", "disable-model-invocation:", "context: fork",
-                          "model:", "effort:", "hooks:", "$ARGUMENTS", "${CLAUDE"):
+        for forbidden in ("allowed-tools:", "disallowed-tools:", "disable-model-invocation:",
+                          "hooks:", "$ARGUMENTS", "$0", "${CLAUDE", "!`"):
             self.assertNotIn(forbidden, text, forbidden)
 
 
