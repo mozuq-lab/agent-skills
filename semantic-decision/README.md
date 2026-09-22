@@ -116,6 +116,12 @@ python3 -m unittest discover -s semantic-decision/tests -v
 - `agents/openai.yaml` はこのリポジトリの他スキルとの整合のために置いた Codex 用の表示設定で、スキル本文は依存しません。自動適用を抑止する `policy` は付けていません（仕様が限定的な自動利用を許容するため）。
 - SKILL.md の frontmatter は `name`／`description` だけで、`allowed-tools`、`disable-model-invocation`、`context: fork`、hooks、変数展開は使いません。
 
+## モデル・effort の切り替えについて
+
+初版の frontmatter は `name`／`description` のみで、モデルや effort を指定していません。Claude Code では frontmatter の `model`／`effort` で切り替えができ、既定（インライン実行）ではそのターンの残り全体に効き、`context: fork` を併記するとサブエージェント側にだけ効きます。Codex にはスキル単位でモデルや reasoning effort を指定する仕組みがなく、これらのフィールドは無視されます。
+
+`context: fork` 相当の経路で Haiku 4.5 と Sonnet 5 を試した結果は [`evals/REPORT.md`](evals/REPORT.md) の追加評価に記録しています。12 件の範囲では、Sonnet 5 は判定をすべて期待どおりに返し（2 件で JSON の後に補足段落あり）、Haiku 4.5 は判定内容は概ね維持したものの出力契約（JSON 1 個だけ、`explanation` の条件）を満たさないことが多くありました。`effort: low` の影響は未検証です。切り替えを採用する場合は、対象モデルで再評価したうえで frontmatter を変更してください。
+
 ## 限界
 
 - スキル本文の禁止指示だけでツール使用が技術的に封鎖されるわけではありません。厳密な封鎖が必要な呼び出し元は、ホストの権限設定や実行側コードで制御してください。
