@@ -1,5 +1,7 @@
 # 振る舞い評価レポート
 
+このレポートの既存の fork 評価と Codex smoke test は旧版の実行経路の記録です。現行版（Claude inline／Codex 別セッション）の評価とは区別します。
+
 - 実施日: 2026-09-22（Codex smoke test: 2026-09-23）
 - ホスト: Claude Code（リモート実行環境、CLI 2.1.278）
 - モデル: `claude-fable-5-1`（`get_session` の `session_context.model` と `external_metadata.last_served_model` の両方で確認）
@@ -69,19 +71,19 @@ Claude Code の Agent ツール（general-purpose）を 1 ケース 1 エージ�
 
 ## Codex 向け静的確認と実機 smoke test
 
-- `skills/semantic-decision/SKILL.md` は、Agent Skills共通の `name`／`description` に加えて、Claude Code向けの `context`／`agent`／`model`／`effort`／`background` を持つ（`tests/test_distribution.py` で固定値を検査）。変数展開・hooksは使わない。
-- Codex同梱の `quick_validate.py` は、Claude Code向けの5項目を未知の top-level key として拒否する。作成者向けvalidatorの結果とruntimeでの読み込み・実行結果は分けて扱う。
+- 旧版（`e349244`）の `skills/semantic-decision/SKILL.md` は、Agent Skills共通の `name`／`description` に加えて、Claude Code向けの `context`／`agent`／`model`／`effort`／`background` を持っていた。変数展開・hooksは使わなかった。
+- Codex同梱の `quick_validate.py` は、旧版の Claude Code向け5項目を未知の top-level key として拒否した。作成者向けvalidatorの結果とruntimeでの読み込み・実行結果は分けて扱う。
 - 本文の相対参照 `references/protocol.md`、`references/examples.md`、`scripts/validate.py` は同じディレクトリ内で解決する（同テストで検査）。
 - `agents/openai.yaml` は表示名だけを持ち、スキル本文はこれに依存しない。
 - 配置先 `~/.agents/skills/semantic-decision/`（個人）／`.agents/skills/semantic-decision/`（プロジェクト）は 2026-09-23 時点のOpenAI Docsに基づく。
 
 ### 実機 smoke test（2026-09-23）
 
-- ホスト: `codex-cli 0.155.1`。利用者が `$semantic-decision` を付けて、次の正規入力を明示実行した。
+- ホスト: `codex-cli 0.155.1`。利用者が `$semantic-decision` を付けて、次の正規入力を明示実行した。対象 SKILL.md は `e349244fbac1cabd6677fabbad9041e867367e49`。一時 Git リポジトリ `/tmp/semantic-decision-smoke.WH0wAw` の `.agents/skills/semantic-decision` を原本の `skills/semantic-decision` へ symlink し、`codex -C` から実行した（利用者報告、2026-09-23 12:47 JST）。
 - 入力: `{"version":"1","id":"smoke-01","operation":"choose","question":"カフェインを避ける条件に合う飲み物はどれか。","evidence":[{"id":"E1","text":"麦茶はカフェインを含まない。コーヒーはカフェインを含む。"}],"constraints":["カフェインを含まないこと"],"options":[{"id":"mugicha","label":"麦茶"},{"id":"coffee","label":"コーヒー"}],"explain":false}`
 - 結果: `{"version":"1","id":"smoke-01","status":"decided","value":"mugicha","reason":null}`。前置き・コードフェンス・補足はなく、期待値と一致した。
-- この 1 件から確認できるのは、現在のfrontmatterが `codex-cli 0.155.1` の明示実行を妨げず、読み込まれた指示のJSON-only契約に沿う結果が得られたことまで。各frontmatterフィールドの解釈、実行モデル、reasoning effort、subagent利用の有無は確認していない。
-- `/skills` での一覧表示結果は利用者報告に含まれず未確認。明示呼び出し以外の自動選択と会話復帰も未確認。
+- この 1 件から確認できるのは、旧版のfrontmatterが `codex-cli 0.155.1` の明示実行を妨げず、読み込まれた指示のJSON-only契約に沿う結果が得られたことまで。各frontmatterフィールドの解釈、実行モデル、reasoning effort、subagent利用の有無は確認していない。
+- 利用者による `/skills` での一覧表示も確認した。明示呼び出し以外の自動選択と会話復帰は未確認。
 
 ## 再現手順
 
@@ -136,7 +138,7 @@ Fable 5.1 の列は評価方法が異なる（SKILL.md を Read させ、1 行�
 
 ### この結果からの判断材料
 
-- モデルを軽くする目的で `context: fork` を使うなら、Sonnet 5 は 12 件の範囲で判定品質を保った。Haiku 4.5 は現行の SKILL.md のままでは出力契約を満たさないことが多い。
+- モデルを軽くする目的で `context: fork` を使うなら、Sonnet 5 は 12 件の範囲で判定品質を保った。Haiku 4.5 は当時の SKILL.md のままでは出力契約を満たさないことが多い。
 - Haiku 4.5 を使う場合は、SKILL.md の出力規則を強める（最終メッセージ全体が JSON であること、`explanation` の禁止条件の強調など）変更と再評価が必要になる。これは本評価の範囲外で未実施。
 - いずれも 1 回ずつの実行であり、再現性は未確認。一般的な精度や速度差への外挿はしない。
 
@@ -174,3 +176,14 @@ Fable 5.1 の列は評価方法が異なる（SKILL.md を Read させ、1 行�
 - 変更後は、逸脱が出ていた E10・E11 を各 3 回実行しても補足段落は付かなかった。少数回の観測であり、逸脱が「防止された」とは言えないが、出現率が下がったことは観測できた。
 - 逸脱を完全に防ぐ手段はプロンプトの範囲には無い。契約の最終的な保証は呼び出し側の `validate.py` による検証で行い、検証失敗を保留・停止として扱う設計は変えていない。
 - `effort: low` の影響、実際の `/semantic-decision` 経由の fork 読み込み、Haiku 4.5 での再評価は未実施。
+
+## Codex CLI の別セッション手動確認（旧版、2026-09-23）
+
+利用者が `e349244` のスキルを置いた一時 Git リポジトリで `codex exec -C /tmp/semantic-decision-smoke.WH0wAw --ephemeral --sandbox read-only --model gpt-5.6-luna -c 'model_reasoning_effort="low"'` を実行した。CLI 表示は `model: gpt-5.6-luna`、`reasoning effort: low`、`sandbox: read-only`。自然文の飲み物選択に対し `{"version":"1","id":"choose-01","status":"decided","value":"mugicha","reason":null}` を返した。`context7` MCP の認証エラーは出たが判定まで進み、CLI は `tokens used 10,901` と表示した。終了コードは未記録。この試行は現在の `gpt-6-luna` runner の動作・利用枠・判断品質を実証しない。
+
+## 現行経路の実装検証（2026-09-23 JST）
+
+- Claude Code の `context: fork` 設定を外し、Codex 用 runner は `gpt-6-luna`・low・read-only・ephemeral の別セッションを 1 回起動する構成に変更した。サブエージェント起動は使わない。
+- Codex の `quick_validate.py` は `Skill is valid!`。Python 3.12 の `unittest` は 76 件成功。うち runner の 6 件は fake Codex CLI を使い、起動引数、一時 Git リポジトリと symlink、再帰防止、CLI 失敗、JSON 不正、候補外の結果で判定を返さないことを確認した。これは実モデルの判断評価ではない。
+- 実機の `gpt-6-luna` smoke test をこの作業環境から試みたが、`codex exec` は `failed to initialize in-process app-server client: Operation not permitted (os error 1)` でモデル呼び出し前に終了した。runner も非 0 で停止し、判定 JSON を返さなかった。モデルの利用可否と現行 `$semantic-decision` の自動経路は未確認。旧モデルへの切り替えは行っていない。
+- Claude Code の正式な `/semantic-decision` inline 実行、Codex 親スキルから runner への自動呼び出し、12 シナリオの `gpt-6-luna` 判定品質、時間・トークン使用量は未評価。

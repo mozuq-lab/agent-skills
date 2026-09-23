@@ -9,16 +9,10 @@ import unittest
 from _helpers import EVALS_DIR, PROJECT_DIR, REPO_ROOT, SKILL_DIR
 
 SKILL_MD = SKILL_DIR / "SKILL.md"
-# name / description は Agent Skills 共通。残りは Claude Code 向けの実行設定で、Codex 側の
-# フィールド解釈には依存しない。値を変えるときは README と評価レポートも更新する。
+# 両ホストとも skill 自体は inline。Codex の別セッションは runner が起動する。
 EXPECTED_FRONTMATTER = {
     "name": "semantic-decision",
     "description": None,
-    "context": "fork",
-    "agent": "general-purpose",
-    "model": "claude-sonnet-5",
-    "effort": "low",
-    "background": "false",
 }
 STDLIB = set(sys.stdlib_module_names)
 
@@ -42,7 +36,7 @@ def parse_frontmatter(text):
 class RequiredFiles(unittest.TestCase):
     def test_skill_files_exist(self):
         for rel in ("SKILL.md", "references/protocol.md", "references/examples.md",
-                    "scripts/validate.py", "agents/openai.yaml"):
+                    "scripts/validate.py", "scripts/run_codex.py", "agents/openai.yaml"):
             self.assertTrue((SKILL_DIR / rel).is_file(), rel)
 
     def test_project_files_exist(self):
@@ -123,6 +117,7 @@ class DocumentationClaims(unittest.TestCase):
 class PythonSources(unittest.TestCase):
     def python_files(self):
         yield SKILL_DIR / "scripts" / "validate.py"
+        yield SKILL_DIR / "scripts" / "run_codex.py"
         yield from sorted(PROJECT_DIR.glob("tests/*.py"))
 
     def test_only_standard_library_imports(self):
@@ -136,7 +131,7 @@ class PythonSources(unittest.TestCase):
                 else:
                     continue
                 for name in names:
-                    if name in ("_helpers", "__future__", ""):
+                    if name in ("_helpers", "validate", "__future__", ""):
                         continue
                     self.assertIn(name, STDLIB, f"{path.name} imports {name}")
 

@@ -1,0 +1,1 @@
+{"version":"1","id":"worker-smoke-01","operation":"choose","question":"カフェインを避ける条件に合う飲み物はどれか。","evidence":[{"id":"E1","text":"麦茶はカフェインを含まない。コーヒーはカフェインを含む。"}],"constraints":["カフェインを含まないこと"],"options":[{"id":"mugicha","label":"麦茶"},{"id":"coffee","label":"コーヒー"}],"explain":false}

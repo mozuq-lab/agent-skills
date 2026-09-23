@@ -2,9 +2,12 @@
 
 形式の検証（unittest）、判断の評価（このディレクトリ）、ホストの互換性確認（手動）を分けます。単体テストだけが通っても「判断精度を検証済み」とは扱いません。結果は [REPORT.md](REPORT.md) に記録します。
 
+以下の `context: fork` 再現手順と既存の結果は旧版の評価記録です。現行版は Claude Code で inline、Codex で `scripts/run_codex.py` から独立した `codex exec` を起動します。既存結果を現行版の評価結果として読み替えません。
+
 ## ファイル
 
 - `scenarios.jsonl`: 12 シナリオ。各行は `case_id`、`request`、`expected`（`status`／`value`／`reason` の 3 キー）、`notes`。自由文の `explanation` は採点対象にしません。
+- `smoke-request.json`: 現行 Codex runner の単独実機確認用の合成入力（期待値は `mugicha`）。
 - `results/baseline/`: スキルなしで実行した基準側の実出力（E01・E04・E07・E08）。
 - `results/with-skill/`: スキルありで実行した実出力（12 件）。
 - `results/fork-sonnet-v2/`: 出力規則を強めた `context: fork` 採用版 SKILL.md での Sonnet 5 再評価（12 件 + E10・E11 各 2 回追加）。
@@ -104,6 +107,8 @@ done
 2. 目的・候補・根拠を添えた小さな判断依頼を明示呼び出しなしで送り、必要に応じてスキルが選択される（選択されない場合もあり、失敗とは扱わない）。
 3. 「新しいサービスのアイデアを考える」「このコードを実装する」を送り、親タスク全体がスキルの JSON 判定に置き換わらない。
 4. 明示呼び出しの直後に通常の質問を送り、回答が JSON に固定されない。
+
+現行版では、Claude Code の呼び出しで Agent ツールが起動しないこと、Codex で `gpt-6-luna`・low の子セッションが 1 回だけ起動することも別途確認する。Codex の子セッション起動に失敗した場合は、親の inline 判定に切り替わらないことを確認する。
 
 ## 記録すること
 

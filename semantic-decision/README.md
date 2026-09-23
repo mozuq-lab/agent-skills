@@ -13,7 +13,7 @@
 
 ## 非目的
 
-- 外部 API、モデルアダプター、MCP サーバー、自動インストーラー、永続メモリ、バッチ処理は作りません。
+- 外部 API を直接呼ぶアダプター、MCP サーバー、自動インストーラー、永続メモリ、バッチ処理は作りません。Codex 用には同梱 CLI runner を使います。
 - 判断結果からブラウザ操作・シェル操作・ファイル変更・外部送信を行う機能はありません。
 - 高速化、トークン削減、校正済み確率、完全な JSON 保証、安全性の保証は謳いません。スキルはホストへの指示であり、独立した推論サービスでもセキュリティ境界でもありません。
 - `confidence`、`runner_up`、複数ラベル、ランキング、複数項目の総合点は初版に含めません。
@@ -26,7 +26,8 @@ skills/semantic-decision/          # 配布対象（正本）
 ├── agents/openai.yaml             # Codex 用の表示名（このリポジトリの慣例）
 ├── references/protocol.md         # 入出力契約の厳密版
 ├── references/examples.md         # 入出力例
-└── scripts/validate.py            # 契約の機械検証（標準ライブラリのみ）
+├── scripts/validate.py            # 契約の機械検証（標準ライブラリのみ）
+└── scripts/run_codex.py           # Codex の別セッション起動と結果検証
 semantic-decision/                 # 配布対象外
 ├── README.md                      # この文書
 ├── tests/                         # unittest（契約・配布・fixture 整合）
@@ -53,7 +54,7 @@ $semantic-decision
 候補: A=サインイン(button)、B=アカウント新規登録(button)
 ```
 
-このように自然文で渡した場合、ホストが問い・候補・根拠を正規入力へ整理して判定します。生成してよいのは `version`、リクエスト ID、未採番の `C1`／`E1` 等の ID だけで、候補・事実・評価基準は補いません。正規入力の JSON を直接渡すこともできます。
+このように自然文で渡した場合、ホストが問い・候補・根拠を正規入力へ整理します。生成してよいのは `version`、リクエスト ID、未採番の `C1`／`E1` 等の ID だけで、候補・事実・評価基準は補いません。正規入力の JSON を直接渡すこともできます。Claude Code はその場で判定し、Codex は正規入力を同梱 runner に渡して別セッションで判定します。
 
 親タスク中の局所的な判断に自動で使われることもありますが、ホストの判断に依存するため常に発火するとは限りません。「新しいサービスのアイデアを考える」「このコードを実装する」のような親タスク全体をこのスキルで置き換えることはなく、判断結果の次の通常会話は JSON に固定されません。
 
@@ -84,7 +85,7 @@ npx skills add mozuq-lab/agent-skills -g -a codex claude-code --skill semantic-d
 
 ## Python 検証
 
-`scripts/validate.py` は Python 3.11 以上、標準ライブラリのみで動きます。モデルは呼ばず、JSON の構造・型・ID 対応・`status` と `value` の整合だけを確認します。リポジトリルートから:
+`scripts/validate.py` と `scripts/run_codex.py` は Python 3.11 以上、標準ライブラリのみで動きます。前者はモデルを呼ばず、JSON の構造・型・ID 対応・`status` と `value` の整合だけを確認します。リポジトリルートから:
 
 ```sh
 python3 skills/semantic-decision/scripts/validate.py request --file request.json
@@ -101,6 +102,7 @@ python3 -m unittest discover -s semantic-decision/tests -v
 
 - `test_validate.py`: 入出力契約、厳密な JSON 解析、結果と入力の対応、CLI の終了コードとファイル非変更。
 - `test_distribution.py`: 必須ファイル、frontmatter、相対参照、SKILL.md の行数上限、標準ライブラリのみの使用、ホスト互換性に関する文書の主張。
+- `test_run_codex.py`: 外部モデルを呼ばない fake CLI で runner の起動引数、隔離、結果検証、失敗時の停止を確認。
 - `test_scenarios.py`: `evals/scenarios.jsonl` の 12 件が契約と整合すること。
 
 ## 振る舞い評価
@@ -114,34 +116,33 @@ python3 -m unittest discover -s semantic-decision/tests -v
 - `result` 検証で元の request が `invalid_request` かつ形式が有効な `id` を持つ場合、結果の `id` はその値と一致することを要求します。`null` は不可です。
 - 深すぎる入れ子など Python の `json` が処理できない入力は、制御された `invalid_json` として扱います。
 - `agents/openai.yaml` はこのリポジトリの他スキルとの整合のために置いた Codex 用の表示設定で、スキル本文は依存しません。自動適用を抑止する `policy` は付けていません（仕様が限定的な自動利用を許容するため）。
-- SKILL.md の frontmatter は `name`／`description` と、Claude Code 向けの `context`／`agent`／`model`／`effort`／`background` だけです。`allowed-tools`、`disable-model-invocation`、hooks、`$ARGUMENTS` などの変数展開は使いません。
+- SKILL.md の frontmatter は共通の `name`／`description` だけです。Codex の `quick_validate.py` で拒否される旧版の追加フィールドは外しました。`context: fork`、hooks、`$ARGUMENTS` などの変数展開は使いません。
 
 ## 実行モデルと effort（ホスト別）
 
-SKILL.md の frontmatter には、`name`／`description` に加えて Claude Code 向けの実行設定を置いています。
+- Claude Code はスキルを親セッション内で実行します。サブエージェントは起動せず、モデルと effort は親セッションの設定に従います。スキル単位の軽量モデル・low 指定はありません。
+- Codex は親が正規入力を一時ファイルに保存し、同梱の `scripts/run_codex.py` を 1 回呼びます。runner は一時 Git リポジトリへこのスキルを symlink し、`codex exec --ephemeral --sandbox read-only --model gpt-6-luna -c 'model_reasoning_effort="low"'` を起動します。子には worker マーカーを渡し、同じ runner の再起動を防ぎます。`--disable multi_agent` も指定します。
+- runner は Codex CLI の終了コードと最終 stdout を確認し、`validate.py` と同じ契約で出力を検証します。成功時だけ JSON 1 個を stdout に出し、CLI エラー・出力不正・候補外の値では非 0 で停止します。親が別モデルや inline 判定へフォールバックすることはありません。入力不備だけはモデル不要の構造判定として親が `invalid_input` を返せます。
 
-```yaml
-context: fork
-agent: general-purpose
-model: claude-sonnet-5
-effort: low
-background: false
+正規入力ファイルがある場合、runner は単独でも実行できます。
+
+```sh
+python3 skills/semantic-decision/scripts/run_codex.py request.json
+python3 skills/semantic-decision/scripts/run_codex.py semantic-decision/evals/smoke-request.json
 ```
 
-- Claude Code では、スキル本文をプロンプトとして general-purpose サブエージェントに渡し、会話履歴なしで実行します。`model` と `effort` はそのサブエージェントにだけ効き、親セッションのモデルや effort は変わりません。`background: false` により、判断結果を待ってから親の作業が続きます。
-- 組織の `availableModels` で除外されたモデルや auto モード非対応のモデルは無視され、セッションのモデルで実行されます。
-- Codex側では、このスキルの Claude Code 向け frontmatter によるモデル・reasoning effort・fork の指定に依存しません。[OpenAI Docs のスキル説明](https://learn.chatgpt.com/docs/build-skills) は `name` と `description` を必須項目として示し、[subagent の設定](https://learn.chatgpt.com/docs/agent-configuration/subagents) は明示起動、`[agents]` の既定値、custom agent file をモデル・effort の設定箇所として示しています。
-- 2026-09-23 の手動 smoke test では、`codex-cli 0.155.1` が現在の frontmatter を持つスキルを `$semantic-decision` で明示実行し、期待した JSON オブジェクトだけを返しました。これは現在の実装で追加フィールドが明示実行を妨げなかったことの確認であり、Codexが各フィールドを解釈したか、どのモデル・effort・実行経路を使ったかの確認ではありません。
-- Codex同梱の `quick_validate.py` は `context`／`agent`／`model`／`effort`／`background` を未知の top-level key として拒否します。runtime smoke test と作成者向けvalidatorは別の確認であり、この共有構成はClaude Codeの検証済み設定を保つ代わりに `quick_validate.py` の許可キーだけには収まりません。配布物の固定構成は `tests/test_distribution.py` で検査します。
-- 仕様書 §9.1 は当初これらのフィールドに依存しない方針でしたが、軽いモデルで実行したいという利用者の要望により変更しました。スキル本文自体はこれらの設定が無くても動作するよう書かれています。
+2 行目はこのリポジトリの合成データによる smoke test です。期待する `value` は `mugicha`。`python3` が 3.11 未満を指す環境では、3.11 以上の実行コマンドに読み替えてください。この単独実行は runner と子セッションを確認できますが、親の `$semantic-decision` が runner を呼ぶ経路は別途確認が必要です。
 
-評価結果は [`evals/REPORT.md`](evals/REPORT.md) の追加評価 1・2 を参照してください。`context: fork` 相当の経路で、Sonnet 5 は 12 シナリオ + 追加 4 回の計 16 回すべてで JSON 1 個だけの結果を返し、判定も期待どおりでした。Haiku 4.5 は判定内容は概ね維持したものの出力契約を満たさないことが多く、採用していません。`effort: low` の影響は未検証です。
+Python 3.11 以上、Git、認証済み Codex CLI、および `gpt-6-luna` の利用権が必要です。[OpenAI Docs の更新履歴](https://learn.chatgpt.com/docs/changelog) によると、CLI のモデルカタログへの GPT-6 Sol/Luna 追加は 0.156.1 です。この環境の `codex-cli 0.155.1` で `gpt-6-luna` を直接指定できるかは未確認で、runner は別モデルに切り替えません。親セッションの sandbox が CLI 子プロセスを許可しない場合も失敗として扱います。
+
+2026-09-22 の Sonnet 5／Haiku 4.5 による fork 相当の評価と、2026-09-23 の旧 Codex smoke test は旧構成の履歴です。現行の Claude inline・Codex `gpt-6-luna` 別セッションの判断品質を示すものではありません。詳細は [`evals/REPORT.md`](evals/REPORT.md) を参照してください。
 
 ## 限界
 
 - スキル本文の禁止指示だけでツール使用が技術的に封鎖されるわけではありません。厳密な封鎖が必要な呼び出し元は、ホストの権限設定や実行側コードで制御してください。
 - 短い出力の指示は、内部推論量、ホストが消費するトークン、応答時間、正答率を保証しません。新しい API キーは不要ですが、ホストの通常の利用枠は消費します。
-- 外部 API を使わないことは「入力が端末外に出ない」保証ではありません。
+- Codex の別セッションは親と子の両方の利用枠を使います。短い依頼で有利になるかは未測定です。
+- runner は独自の API キーを扱いませんが、Codex CLI の通常の認証・通信を使います。入力が端末外に出ないという意味ではありません。
 - 意味的な候補選択を、削除・支払い・公開・認可変更などの承認根拠にしないでください。
 
 ## 今後の候補（今回は実装しない）

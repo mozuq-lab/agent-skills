@@ -10,7 +10,7 @@ Codex・Claude Code で使う個人用スキルの原本を管理するリポジ
 | `execute-review` | 実行とレビュー | 依頼を独立した実行担当とレビュー担当のサブエージェントで処理し、修正を経て報告する。コーディングに限らず設計・文書・調査にも使う | [SKILL.md](skills/execute-review/SKILL.md) |
 | `semantic-decision` | 小さな判断をJSONで返す | 与えられた候補・根拠から `choose`／`boolean`／`classify`／`score` の判定を1個のJSONで返す。判断不能は `abstain` とし、操作は実行しない。開発用のテスト・評価は [semantic-decision/](semantic-decision/README.md) | [SKILL.md](skills/semantic-decision/SKILL.md) |
 
-付属ファイルは各スキルのディレクトリ内に置きます。`expand` と `execute-review` は本文 `SKILL.md`、Codex向け表示・呼び出し設定 `agents/openai.yaml`、小さなテスト例 `references/smoke-tests.md` の3ファイルで構成しています。`semantic-decision` は本文と `agents/openai.yaml` に加え、入出力契約と例の参照ファイル、標準ライブラリだけの検証スクリプト `scripts/validate.py` を持ち、単体テストと振る舞い評価は配布対象外の `semantic-decision/` に置いています。どのスキルも外部サービスや特定の開発プロジェクトへの依存はありません。
+付属ファイルは各スキルのディレクトリ内に置きます。`expand` と `execute-review` は本文 `SKILL.md`、Codex向け表示・呼び出し設定 `agents/openai.yaml`、小さなテスト例 `references/smoke-tests.md` の3ファイルで構成しています。`semantic-decision` は本文と `agents/openai.yaml` に加え、入出力契約と例の参照ファイル、標準ライブラリだけの検証スクリプト `scripts/validate.py`、Codex CLI を起動する `scripts/run_codex.py` を持ちます。単体テストと振る舞い評価は配布対象外の `semantic-decision/` に置いています。`semantic-decision` の Codex 経路を除き、スキルは外部 CLI に依存しません。
 
 ## 原本と利用用ファイル
 
@@ -85,7 +85,7 @@ CLIの確認画面で対象を確かめて削除します。編集用の原本�
 
 `expand` は呼び出された一回答に適用し、明示された個数・長さ・形式を優先します。相談への呼び出しをコード変更や外部への書き込みの許可とは扱いません。
 
-`semantic-decision` は、候補・根拠・判断基準が揃った小さな判断に使い、結果を JSON 1 個で返します。判断できなければ `abstain` で保留し、結果に基づく操作や承認は行いません。他の2つと異なり、親タスク中の局所的な判断で自動的に選択されることを許容しているため、`disable-model-invocation` と `allow_implicit_invocation: false` は付けていません。Claude Code では frontmatter の `context: fork`・`model: claude-sonnet-5`・`effort: low` により、会話履歴を持たないサブエージェントで軽いモデルとして実行されます。Codex ではこれらを実行設定として前提にしません。`codex-cli 0.155.1` の手動 smoke test では現在の frontmatter のまま明示呼び出しと JSON-only 応答に成功しましたが、各フィールドを解釈したか、どのモデル・effort・実行経路を使ったかは確認していません。詳細は [semantic-decision/README.md](semantic-decision/README.md) を参照してください。
+`semantic-decision` は、候補・根拠・判断基準が揃った小さな判断に使い、結果を JSON 1 個で返します。判断できなければ `abstain` で保留し、結果に基づく操作や承認は行いません。他の2つと異なり、親タスク中の局所的な判断で自動的に選択されることを許容しているため、`disable-model-invocation` と `allow_implicit_invocation: false` は付けていません。Claude Code では親セッション内で判定し、サブエージェントを使いません。Codex では親が同梱 runner を呼び、`gpt-6-luna`・low の独立した `codex exec` セッションで判定します。runner が失敗した場合は親による判定へ切り替えません。旧版の fork 経路での評価は履歴として残しています。詳細は [semantic-decision/README.md](semantic-decision/README.md) を参照してください。
 
 `execute-review` は、呼び出されたエージェントを進行役にして、実行担当とレビュー担当を会話履歴を継承しないサブエージェントとして起動します。Claude Code では Agent ツール、Codex ではサブエージェント機能（`spawn_agent`）を使うため、Codex側は `features.multi_agent` が有効である必要があります。実行許可は元の依頼と環境に従い、依頼にない push・公開・送信は行いません。
 
