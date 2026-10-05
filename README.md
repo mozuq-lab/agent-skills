@@ -8,8 +8,9 @@ Codex・Claude Code で使う個人用スキルの原本を管理するリポジ
 | --- | --- | --- | --- |
 | `expand` | 思考を広げる | 明示的に呼び出した回答で、分析・批評・説明・相談・発想の幅と厚みを増やす | [SKILL.md](skills/expand/SKILL.md) |
 | `execute-review` | 実行とレビュー | 依頼を独立した実行担当とレビュー担当のサブエージェントで処理し、修正を経て報告する。コーディングに限らず設計・文書・調査にも使う | [SKILL.md](skills/execute-review/SKILL.md) |
+| `casebrief-lite` | テスト観点と設計の入り口 | 小さな修正の diff・コミット範囲・PR・Issue・説明から、変更の要約・設計の入り口・テスト観点・仮定と確認事項を 1 画面で出す | [SKILL.md](skills/casebrief-lite/SKILL.md) |
 
-付属ファイルは各スキルのディレクトリ内に置きます。どのスキルも本文 `SKILL.md`、Codex向け表示・呼び出し設定 `agents/openai.yaml`、小さなテスト例 `references/smoke-tests.md` の3ファイルで構成しています。追加のスクリプト、外部サービス、特定の開発プロジェクトへの依存はありません。
+付属ファイルは各スキルのディレクトリ内に置きます。どのスキルも本文 `SKILL.md`、Codex向け表示・呼び出し設定 `agents/openai.yaml`、小さなテスト例 `references/smoke-tests.md` の3ファイルを基本とします。`casebrief-lite` だけは、観点と技法のメモ `references/viewpoints.md` を加えた4ファイルです。追加のスクリプトや特定の開発プロジェクトへの依存はありません。外部サービスは、`casebrief-lite` が PR・Issue を読むときに `gh` を使うだけです。
 
 ## 原本と利用用ファイル
 
@@ -33,6 +34,7 @@ Node.js と `npx` を利用できる環境で実行します。配置範囲は�
 ```sh
 npx skills add mozuq-lab/agent-skills -g -a codex claude-code --skill expand
 npx skills add mozuq-lab/agent-skills -g -a codex claude-code --skill execute-review
+npx skills add mozuq-lab/agent-skills -g -a codex claude-code --skill casebrief-lite
 ```
 
 インストール方式の選択では **Symlink** を選択します。確認画面でスキル名と対象エージェントを確かめて進めます。既存の同名スキルがある場合は、内容が原本に取り込まれていることを先に確認してください。
@@ -78,11 +80,13 @@ CLIの確認画面で対象を確かめて削除します。編集用の原本�
 
 ## 呼び出し方と共通利用の範囲
 
-- Codex: `$expand 質問`、`$execute-review 依頼`。引数なしなら、対象が明らかな直前の相談・依頼に適用します。
-- Claude Code: `/expand 質問`、`/execute-review 依頼`。本文中の `$名前` はCodexの表記で、Claude Codeでは `/名前` による明示呼び出しとして使います。
+- Codex: `$expand 質問`、`$execute-review 依頼`、`$casebrief-lite 対象`。引数なしなら、`expand` と `execute-review` は対象が明らかな直前の相談・依頼に、`casebrief-lite` は未コミットの差分に適用します。
+- Claude Code: `/expand 質問`、`/execute-review 依頼`、`/casebrief-lite 対象`。本文中の `$名前` はCodexの表記で、Claude Codeでは `/名前` による明示呼び出しとして使います。
 
 `expand` は呼び出された一回答に適用し、明示された個数・長さ・形式を優先します。相談への呼び出しをコード変更や外部への書き込みの許可とは扱いません。
 
 `execute-review` は、呼び出されたエージェントを進行役にして、実行担当とレビュー担当を会話履歴を継承しないサブエージェントとして起動します。Claude Code では Agent ツール、Codex ではサブエージェント機能（`spawn_agent`）を使うため、Codex側は `features.multi_agent` が有効である必要があります。実行許可は元の依頼と環境に従い、依頼にない push・公開・送信は行いません。
 
-本文は両エージェントで共有できますが、`agents/openai.yaml` の表示名と `policy.allow_implicit_invocation: false` はCodex向けの設定です。Claude Codeで設定レベルの自動呼び出し防止を行う仕組みは frontmatter の `disable-model-invocation: true` です。どちらのスキルも明示呼び出し専用なので、Claude Codeは frontmatter の `disable-model-invocation: true`、Codexは `openai.yaml` の `allow_implicit_invocation: false` で、それぞれ自動適用を抑止しています。Codexは frontmatter のこのフィールドを解釈せず無視します。また Claude Codeでは、この設定があるスキルの description は会話の文脈に載らないため、description 中の「自動適用しない」という記述は実質Codex向けです。詳細は [Claude Codeのスキル仕様](https://code.claude.com/docs/en/skills#control-who-invokes-a-skill) を参照してください。
+`casebrief-lite` の対象は、空（未コミットの差分と未追跡ファイル）、コミット範囲（`main...`）、ブランチ、PR（`#123`）、Issue（`issue 45`）、修正の説明文のいずれかです。サブエージェントは使わず、結果はチャットに出します。ファイルを書き出すのは、casebrief 向けの `source.md` の下書きを頼まれたときだけです。Claude Code では引数が本文の `$ARGUMENTS` に入り、Codex では `$casebrief-lite` に続く文字列を引数として読みます。明示呼び出し専用にしているのは、「テスト設計を作って」という依頼で casebrief の代わりに誤って起動しないようにするためです。
+
+本文は両エージェントで共有できますが、`agents/openai.yaml` の表示名と `policy.allow_implicit_invocation: false` はCodex向けの設定です。Claude Codeで設定レベルの自動呼び出し防止を行う仕組みは frontmatter の `disable-model-invocation: true` です。どのスキルも明示呼び出し専用なので、Claude Codeは frontmatter の `disable-model-invocation: true`、Codexは `openai.yaml` の `allow_implicit_invocation: false` で、それぞれ自動適用を抑止しています。Codexは frontmatter のこのフィールドを解釈せず無視します。また Claude Codeでは、この設定があるスキルの description は会話の文脈に載らないため、description 中の「自動適用しない」という記述は実質Codex向けです。詳細は [Claude Codeのスキル仕様](https://code.claude.com/docs/en/skills#control-who-invokes-a-skill) を参照してください。

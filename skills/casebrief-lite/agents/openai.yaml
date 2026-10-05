@@ -1,0 +1,5 @@
+interface:
+  display_name: "テスト観点と設計の入り口"
+  short_description: "小さな修正の diff・PR・Issue・説明から、変更の要約・設計の入り口・テスト観点・仮定を 1 画面で出す"
+policy:
+  allow_implicit_invocation: false
