@@ -1,0 +1,5 @@
+interface:
+  display_name: "セキュリティ監査"
+  short_description: "リポジトリ全体や指定したファイル・ディレクトリを、悪用できる脆弱性に絞って監査する"
+policy:
+  allow_implicit_invocation: false
